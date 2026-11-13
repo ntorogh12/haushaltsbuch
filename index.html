@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Haushaltsbuch</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,450;9..144,560;9..144,650&family=Inter:wght@400;500;600&display=swap');
+
+  .bt-root {
+    --paper: #E9EEEA;
+    --panel: #F4F7F4;
+    --ink: #202D28;
+    --ink-soft: #5C6A63;
+    --ink-faint: #8B978F;
+    --line: #C6CFC6;
+    --line-strong: #93A399;
+    --positive: #2E5B45;
+    --negative: #9A4128;
+    --wash: #DCE7DD;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--paper);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--ink);
+  }
+  html, body { margin: 0; padding: 0; }
+  .bt-root * { box-sizing: border-box; }
+  @media (prefers-reduced-motion: reduce) {
+    .bt-root * { transition: none !important; }
+  }
+
+  .bt-main { flex: 1; }
+  .bt-col { max-width: 640px; margin: 0 auto; padding: 40px 24px 28px; }
+  @media (max-width: 480px) { .bt-col { padding: 28px 18px 20px; } }
+
+  .bt-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 650;
+    font-size: clamp(24px, 6vw, 32px);
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .bt-subtitle { font-size: 14px; color: var(--ink-soft); margin: 4px 0 0; }
+  .bt-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .bt-header-left { display: flex; align-items: center; gap: 10px; }
+  .bt-header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .bt-header-right-controls { display: flex; align-items: center; gap: 6px; }
+  .bt-save-status { font-size: 12px; color: var(--ink-faint); white-space: nowrap; min-width: 70px; text-align: right; }
+
+  .bt-nav-btn {
+    background: none; border: 1px solid var(--line-strong); color: var(--ink-soft);
+    width: 32px; height: 32px; border-radius: 3px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+  }
+  .bt-nav-btn:hover { color: var(--positive); border-color: var(--positive); }
+
+  .bt-reset-btn {
+    background: none; border: 1px solid var(--line-strong); color: var(--ink-soft);
+    font-family: 'Inter', sans-serif; font-size: 12.5px; padding: 6px 10px; border-radius: 3px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  }
+  .bt-reset-btn:hover { color: var(--negative); border-color: var(--negative); }
+
+  .bt-budget-row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .bt-budget-label { font-size: 14px; color: var(--ink-soft); }
+  .bt-budget-label span { display: block; font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .bt-budget-input-wrap { display: flex; align-items: baseline; gap: 6px; }
+  .bt-budget-input {
+    font-family: 'Fraunces', Georgia, serif;
+    font-weight: 560;
+    font-size: clamp(26px, 8vw, 40px);
+    text-align: right;
+    border: none;
+    background: transparent;
+    color: var(--ink);
+    width: 100%;
+    max-width: 220px;
+    font-variant-numeric: tabular-nums;
+    outline: none;
+  }
+  .bt-budget-input::placeholder { color: var(--ink-faint); }
+
+  .bt-budget-row-manual { padding: 22px 0 14px; margin: 22px 0 30px; border-bottom: 3px double var(--line-strong); }
+  .bt-budget-section.multi .bt-budget-row-manual { padding: 12px 0 10px; margin: 0; border-bottom: none; }
+  .bt-budget-row-carry { padding: 22px 0 10px; margin: 0; border-bottom: 1px solid var(--line); }
+  .bt-carryover-amount {
+    font-family: 'Fraunces', Georgia, serif; font-size: 19px; color: var(--ink-soft); font-variant-numeric: tabular-nums;
+    background: none; border: none; padding: 0; cursor: pointer;
+  }
+  .bt-carryover-amount:hover { color: var(--positive); text-decoration: underline dotted; text-underline-offset: 3px; }
+  .bt-carry-input { font-family: 'Fraunces', Georgia, serif; font-size: 19px; width: 110px; text-align: right; }
+  .bt-budget-total-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 10px 0 14px; margin-bottom: 30px; border-bottom: 3px double var(--line-strong);
+  }
+  .bt-budget-total-row span:first-child { font-size: 13px; color: var(--ink-soft); }
+  .bt-budget-total-amount { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .bt-budget-total-amount.positive { color: var(--positive); }
+  .bt-budget-total-amount.negative { color: var(--negative); }
+
+  .bt-category { margin-bottom: 26px; }
+  .bt-category-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 2px;
+  }
+  .bt-category-name-wrap { display: flex; align-items: center; gap: 8px; }
+  .bt-category-name {
+    font-family: 'Fraunces', Georgia, serif; font-weight: 560; font-size: 18px;
+    background: none; border: none; padding: 2px 0; color: var(--ink); cursor: pointer; text-align: left;
+  }
+  .bt-category-name:hover { color: var(--positive); text-decoration: underline dotted; text-underline-offset: 4px; }
+  .bt-icon-btn {
+    display: inline-flex; align-items: center; gap: 4px; background: none; border: none;
+    color: var(--ink-soft); font-family: 'Inter', sans-serif; font-size: 13px; cursor: pointer;
+    padding: 4px 4px; border-radius: 3px;
+  }
+  .bt-icon-btn:hover { color: var(--positive); }
+  .bt-icon-btn.danger:hover { color: var(--negative); }
+
+  .bt-item-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 0;
+    border-bottom: 1px dashed var(--line); transition: background-color 0.15s ease;
+  }
+  .bt-item-row.checked {
+    background: var(--wash); margin: 0 -10px; padding-left: 10px; padding-right: 10px; border-radius: 2px;
+  }
+  .bt-checkbox { width: 17px; height: 17px; accent-color: var(--positive); cursor: pointer; flex-shrink: 0; }
+  .bt-item-text { flex: 1; min-width: 0; }
+  .bt-item-name { font-size: 15px; line-height: 1.3; }
+  .bt-item-row.checked .bt-item-name { color: var(--ink-soft); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+  .bt-item-note { font-size: 12px; color: var(--ink-faint); margin-top: 1px; }
+  .bt-item-amount {
+    font-variant-numeric: tabular-nums; font-size: 15px; min-width: 88px; text-align: right; flex-shrink: 0;
+    background: none; border: none; padding: 0; color: var(--ink); cursor: pointer; font-family: 'Inter', sans-serif;
+  }
+  .bt-item-amount:hover { color: var(--positive); text-decoration: underline dotted; text-underline-offset: 3px; }
+  .bt-item-delete { background: none; border: none; color: var(--ink-faint); cursor: pointer; padding: 4px; display: flex; flex-shrink: 0; }
+  .bt-item-delete:hover { color: var(--negative); }
+
+  .bt-edit-input {
+    font-family: inherit; border: 1px solid var(--positive); border-radius: 3px;
+    background: var(--panel); color: var(--ink); outline: none; padding: 2px 6px;
+  }
+  .bt-cat-name-input { font-family: 'Fraunces', Georgia, serif; font-weight: 560; font-size: 18px; min-width: 160px; }
+  .bt-item-amount-input { font-variant-numeric: tabular-nums; font-size: 15px; width: 90px; text-align: right; flex-shrink: 0; }
+
+  .bt-inline-form { display: flex; gap: 8px; align-items: center; padding: 10px 0; flex-wrap: wrap; }
+  .bt-inline-form input {
+    font-family: 'Inter', sans-serif; font-size: 14px; border: 1px solid var(--line-strong);
+    background: var(--panel); border-radius: 3px; padding: 7px 9px; color: var(--ink); outline: none;
+  }
+  .bt-inline-form input:focus { border-color: var(--positive); }
+  .bt-inline-form input.bt-name-field { flex: 1; min-width: 120px; }
+  .bt-inline-form input.bt-amount-field { width: 100px; text-align: right; }
+  .bt-inline-confirm {
+    background: var(--ink); color: var(--panel); border: none; border-radius: 3px;
+    padding: 7px 10px; font-size: 13px; cursor: pointer; display: flex; align-items: center;
+  }
+  .bt-inline-confirm:hover { background: var(--positive); }
+  .bt-inline-cancel { background: none; border: none; color: var(--ink-faint); cursor: pointer; padding: 6px; display: flex; }
+  .bt-inline-cancel:hover { color: var(--negative); }
+
+  .bt-type-toggle { display: flex; border: 1px solid var(--line-strong); border-radius: 3px; overflow: hidden; }
+  .bt-type-btn {
+    background: var(--panel); border: none; color: var(--ink-soft); font-family: 'Inter', sans-serif;
+    font-size: 12.5px; padding: 7px 10px; cursor: pointer;
+  }
+  .bt-type-btn + .bt-type-btn { border-left: 1px solid var(--line-strong); }
+  .bt-type-btn.active { background: var(--ink); color: var(--panel); }
+  .bt-type-btn:hover:not(.active) { color: var(--positive); }
+
+  .bt-add-category {
+    width: 100%; text-align: left; background: none; border: none; border-top: 1px dashed var(--line-strong);
+    padding: 14px 0; color: var(--ink-soft); font-family: 'Inter', sans-serif; font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .bt-add-category:hover { color: var(--positive); }
+
+  .bt-footer { border-top: 3px double var(--line-strong); background: var(--panel); padding: 18px 0 22px; }
+  .bt-footer-inner { max-width: 640px; margin: 0 auto; padding: 0 24px; display: flex; flex-direction: column; gap: 10px; }
+  @media (max-width: 480px) { .bt-footer-inner { padding: 0 18px; } }
+  .bt-footer-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .bt-footer-label { font-size: 13px; color: var(--ink-soft); max-width: 60%; }
+  .bt-footer-label span { display: block; font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; }
+  .bt-footer-amount { font-family: 'Fraunces', Georgia, serif; font-size: 21px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bt-footer-amount.positive { color: var(--positive); }
+  .bt-footer-amount.negative { color: var(--negative); }
+  .bt-backup { margin-top: 28px; padding-top: 16px; border-top: 1px dashed var(--line); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .bt-backup-btn { background: none; border: 1px solid var(--line-strong); color: var(--ink-soft); font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 3px; cursor: pointer; }
+  .bt-backup-btn:hover { color: var(--positive); border-color: var(--positive); }
+  .bt-backup-info { font-size: 12px; color: var(--ink-faint); flex-basis: 100%; }
+</style>
+</head>
+<body>
+  <div class="bt-root">
+    <div class="bt-main">
+      <div class="bt-col">
+        <div class="bt-header-row">
+          <div class="bt-header-left">
+            <button type="button" class="bt-nav-btn" id="bt-prev-month-btn" title="Vorheriger Monat" aria-label="Vorheriger Monat">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div>
+              <h1 class="bt-title">Haushaltsbuch</h1>
+              <p class="bt-subtitle" id="bt-subtitle"></p>
+            </div>
+          </div>
+          <div class="bt-header-right">
+            <div class="bt-header-right-controls">
+              <button type="button" class="bt-reset-btn" id="bt-reset-btn" title="Diesen Monat zurücksetzen">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                Zurücksetzen
+              </button>
+              <button type="button" class="bt-nav-btn" id="bt-next-month-btn" title="Nächsten Monat" aria-label="Nächsten Monat">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
+            <div class="bt-save-status" id="bt-save-status"></div>
+          </div>
+        </div>
+
+        <div id="bt-budget-section"></div>
+
+        <div id="bt-categories"></div>
+        <div id="bt-add-category-zone"></div>
+        <div class="bt-backup">
+          <button type="button" class="bt-backup-btn" id="bt-export-btn">Backup speichern</button>
+          <button type="button" class="bt-backup-btn" id="bt-import-btn">Backup laden</button>
+          <input type="file" id="bt-import-file" accept=".json,application/json" hidden />
+          <div class="bt-backup-info" id="bt-backup-info"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bt-footer">
+      <div class="bt-footer-inner">
+        <div class="bt-footer-row">
+          <div class="bt-footer-label">
+            Verbleibend nach Abgehaktem
+            <span>Budget minus angehakte Posten</span>
+          </div>
+          <div class="bt-footer-amount" id="bt-remaining-checked"></div>
+        </div>
+        <div class="bt-footer-row">
+          <div class="bt-footer-label">
+            Verbleibend nach allen Posten
+            <span>wenn sämtliche Posten abgerechnet werden</span>
+          </div>
+          <div class="bt-footer-amount" id="bt-remaining-all"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  var STORAGE_KEY_V1 = 'haushaltsbuch-state-v1';
+  var STORAGE_KEY_V2 = 'haushaltsbuch-state-v2';
+
+  var ICON_PLUS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  var ICON_X = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+  var ICON_TRASH = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M7 6V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v2"/></svg>';
+
+  var DEFAULT_CATEGORIES = [
+    { id: 'wohnen', name: 'Wohnen & Lebenshaltung', items: [
+      { id: 'miete', name: 'Miete', note: 'fest', amount: 300.00, checked: false },
+      { id: 'essen', name: 'Essen / Lebensmittel', note: 'Budget', amount: 200.00, checked: false }
+    ]},
+    { id: 'gesundheit', name: 'Gesundheit & Energie', items: [
+      { id: 'aok', name: 'AOK Bayern', note: 'Kranken-/Pflegeversicherung', amount: 146.29, checked: false },
+      { id: 'eprimo', name: 'eprimo', note: 'Energieabschlag', amount: 107.00, checked: false },
+      { id: 'eon', name: 'E.ON', note: 'Energieabschlag', amount: 54.00, checked: false }
+    ]},
+    { id: 'mobilitaet', name: 'Mobilität & Kommunikation', items: [
+      { id: 'mvg', name: 'MVG', note: 'Ermäßigungsticket monatlich', amount: 43.00, checked: false },
+      { id: 'freenet', name: 'freenet', note: 'Mobilfunk aktueller Vertrag', amount: 19.98, checked: false }
+    ]},
+    { id: 'finanzen', name: 'Finanzen', items: [
+      { id: 'consors', name: 'CONSORS Finanz', note: 'Finanzierung', amount: 9.00, checked: false }
+    ]},
+    { id: 'abos', name: 'Abos & digitale Dienste', items: [
+      { id: 'claude', name: 'Claude Pro', note: 'Abo', amount: 22.00, checked: false },
+      { id: 'chatgpt', name: 'ChatGPT Plus', note: 'Abo', amount: 21.99, checked: false },
+      { id: 'spotify', name: 'Spotify', note: 'Abo', amount: 17.99, checked: false },
+      { id: 'ps1', name: 'Sony / PlayStation 1', note: 'Abo', amount: 13.99, checked: false },
+      { id: 'ps2', name: 'Sony / PlayStation 2', note: 'Abo', amount: 11.99, checked: false },
+      { id: 'amazonnl', name: 'Amazon Niederlassung', note: 'Abo / Dienst', amount: 8.99, checked: false },
+      { id: 'uber', name: 'Uber One', note: 'Abo', amount: 4.99, checked: false },
+      { id: 'amazondigital', name: 'Amazon Digital Germany', note: 'digitaler Amazon-Dienst', amount: 3.00, checked: false },
+      { id: 'googleone', name: 'Google One 100 GB', note: 'Cloud-Speicher', amount: 1.99, checked: false }
+    ]}
+  ];
+
+  var currencyFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+  function formatCurrency(n) { return currencyFmt.format(isFinite(n) ? n : 0); }
+
+  function parseAmount(input) {
+    if (typeof input !== 'string') return isFinite(input) ? input : 0;
+    var cleaned = input.trim().replace(/[^0-9.,-]/g, '');
+    if (!cleaned) return 0;
+    if (cleaned.indexOf(',') !== -1 && cleaned.indexOf('.') !== -1) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else if (cleaned.indexOf(',') !== -1) {
+      cleaned = cleaned.replace(',', '.');
+    }
+    var n = parseFloat(cleaned);
+    return isFinite(n) ? n : 0;
+  }
+
+  function uid() {
+    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function freshCategories() {
+    return JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  }
+
+  // Stellt die Ursprungs-PDF-Kategorien/-Posten vollständig wieder her (auch falls gelöscht)
+  // und behält selbst hinzugefügte Kategorien/Posten bei – alles ohne Haken.
+  function buildOriginSnapshot(fromCategories) {
+    var defaults = freshCategories();
+    var defaultCategoryIds = defaults.map(function (c) { return c.id; });
+    var defaultItemIdsByCategory = {};
+    defaults.forEach(function (c) {
+      defaultItemIdsByCategory[c.id] = c.items.map(function (it) { return it.id; });
+    });
+
+    var currentByCatId = {};
+    (fromCategories || []).forEach(function (c) { currentByCatId[c.id] = c; });
+
+    var restored = defaults.map(function (defCat) {
+      var current = currentByCatId[defCat.id];
+      var extraItems = [];
+      if (current) {
+        extraItems = current.items
+          .filter(function (it) { return defaultItemIdsByCategory[defCat.id].indexOf(it.id) === -1; })
+          .map(function (it) { return Object.assign({}, it, { checked: false }); });
+      }
+      return Object.assign({}, defCat, { items: defCat.items.concat(extraItems) });
+    });
+
+    var customCategories = (fromCategories || [])
+      .filter(function (c) { return defaultCategoryIds.indexOf(c.id) === -1; })
+      .map(function (c) {
+        return Object.assign({}, c, { items: c.items.map(function (it) { return Object.assign({}, it, { checked: false }); }) });
+      });
+
+    return restored.concat(customCategories);
+  }
+
+  function loadState() {
+    try {
+      var rawV2 = localStorage.getItem(STORAGE_KEY_V2);
+      if (rawV2) {
+        var parsed = JSON.parse(rawV2);
+        if (parsed && Array.isArray(parsed.months) && parsed.months.length && parsed.anchor) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
+    // Migration vom alten Einzel-Monats-Format (v1)
+    try {
+      var rawV1 = localStorage.getItem(STORAGE_KEY_V1);
+      if (rawV1) {
+        var oldParsed = JSON.parse(rawV1);
+        var now = new Date();
+        return {
+          anchor: { year: now.getFullYear(), month: now.getMonth() },
+          months: [{
+            id: uid(),
+            monthOffset: 0,
+            carryOver: 0,
+            manualAmount: typeof oldParsed.budget === 'number' ? oldParsed.budget : 0,
+            categories: Array.isArray(oldParsed.categories) ? oldParsed.categories : freshCategories()
+          }],
+          currentIndex: 0
+        };
+      }
+    } catch (e) {}
+
+    var now2 = new Date();
+    return {
+      anchor: { year: now2.getFullYear(), month: now2.getMonth() },
+      months: [{ id: uid(), monthOffset: 0, carryOver: 0, manualAmount: 0, categories: freshCategories() }],
+      currentIndex: 0
+    };
+  }
+
+  var state = loadState();
+  var openAddFormFor = null;
+  var addingCategory = false;
+  var editingCategoryId = null;
+  var editingItem = null; // { catId, itemId }
+  var editingCarryOver = false;
+  var pendingItemType = 'expense'; // 'expense' | 'income' – für das aktuell geöffnete Hinzufügen-Formular
+  var suppressNextCommit = false;
+  var saveTimer = null;
+
+  function currentMonth() {
+    return state.months[state.currentIndex];
+  }
+
+  function totalBudgetForMonth(m) {
+    return (m.carryOver || 0) + (m.manualAmount || 0);
+  }
+
+  function monthLabelFor(offset) {
+    var d = new Date(state.anchor.year, state.anchor.month + offset, 1);
+    return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  }
+
+  function itemNetContribution(it) {
+    return it.type === 'income' ? -it.amount : it.amount;
+  }
+
+  function computeRemainingAllForMonth(m) {
+    var totalNet = 0;
+    m.categories.forEach(function (c) { c.items.forEach(function (it) { totalNet += itemNetContribution(it); }); });
+    return totalBudgetForMonth(m) - totalNet;
+  }
+
+  function saveState(immediate) {
+    var status = document.getElementById('bt-save-status');
+    status.textContent = 'Speichert …';
+    var doSave = function () {
+      try {
+        localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(state));
+        status.textContent = 'Gespeichert';
+      } catch (e) {
+        status.textContent = 'Speichern fehlgeschlagen';
+      }
+    };
+    if (saveTimer) clearTimeout(saveTimer);
+    if (immediate) { doSave(); }
+    else { saveTimer = setTimeout(doSave, 400); }
+  }
+
+  // ---------- Kategorien / Posten ----------
+
+  function formatItemAmount(it) {
+    var formatted = formatCurrency(it.amount);
+    return it.type === 'income' ? '+' + formatted : formatted;
+  }
+
+  function categoriesHtml() {
+    var m = currentMonth();
+    return m.categories.map(function (cat) {
+      var itemsHtml = cat.items.map(function (it) {
+        var isEditingAmount = editingItem && editingItem.catId === cat.id && editingItem.itemId === it.id;
+        var amountHtml = isEditingAmount
+          ? '<input type="text" inputmode="decimal" class="bt-edit-input bt-item-amount-input" data-cat="' + cat.id + '" data-item="' + it.id + '" value="' + escapeHtml(String(it.amount).replace('.', ',')) + '" />'
+          : '<button type="button" class="bt-item-amount" data-action="edit-item-amount" data-cat="' + cat.id + '" data-item="' + it.id + '" title="Betrag bearbeiten">' + formatItemAmount(it) + '</button>';
+        return '' +
+          '<div class="bt-item-row' + (it.checked ? ' checked' : '') + '">' +
+            '<input type="checkbox" class="bt-checkbox" ' + (it.checked ? 'checked' : '') + ' data-action="toggle-item" data-cat="' + cat.id + '" data-item="' + it.id + '" aria-label="' + escapeHtml(it.name) + ' abrechnen" />' +
+            '<div class="bt-item-text">' +
+              '<div class="bt-item-name">' + escapeHtml(it.name) + '</div>' +
+              (it.note ? '<div class="bt-item-note">' + escapeHtml(it.note) + '</div>' : '') +
+            '</div>' +
+            amountHtml +
+            '<button type="button" class="bt-item-delete" title="Posten löschen" aria-label="' + escapeHtml(it.name) + ' löschen" data-action="delete-item" data-cat="' + cat.id + '" data-item="' + it.id + '">' + ICON_X + '</button>' +
+          '</div>';
+      }).join('');
+
+      var addFormHtml = openAddFormFor === cat.id ? (
+        '<div class="bt-inline-form" data-cat="' + cat.id + '">' +
+          '<input type="text" class="bt-name-field" placeholder="Bezeichnung" />' +
+          '<input type="text" inputmode="decimal" class="bt-amount-field" placeholder="0,00 €" />' +
+          '<div class="bt-type-toggle">' +
+            '<button type="button" class="bt-type-btn' + (pendingItemType === 'expense' ? ' active' : '') + '" data-action="set-item-type" data-type="expense">Ausgabe</button>' +
+            '<button type="button" class="bt-type-btn' + (pendingItemType === 'income' ? ' active' : '') + '" data-action="set-item-type" data-type="income">Einnahme</button>' +
+          '</div>' +
+          '<button type="button" class="bt-inline-confirm" data-action="submit-add-item" data-cat="' + cat.id + '">Hinzufügen</button>' +
+          '<button type="button" class="bt-inline-cancel" data-action="close-add-item">' + ICON_X + '</button>' +
+        '</div>'
+      ) : '';
+
+      var nameHtml = editingCategoryId === cat.id
+        ? '<input type="text" class="bt-edit-input bt-cat-name-input" data-cat="' + cat.id + '" value="' + escapeHtml(cat.name) + '" />'
+        : '<button type="button" class="bt-category-name" data-action="edit-category-name" data-cat="' + cat.id + '" title="Name bearbeiten">' + escapeHtml(cat.name) + '</button>';
+
+      return '' +
+        '<div class="bt-category">' +
+          '<div class="bt-category-header">' +
+            '<div class="bt-category-name-wrap">' + nameHtml + '</div>' +
+            '<div style="display:flex;align-items:center;gap:2px;">' +
+              '<button type="button" class="bt-icon-btn" data-action="open-add-item" data-cat="' + cat.id + '">' + ICON_PLUS + ' Posten</button>' +
+              '<button type="button" class="bt-icon-btn danger" title="Kategorie löschen" aria-label="Kategorie ' + escapeHtml(cat.name) + ' löschen" data-action="delete-category" data-cat="' + cat.id + '">' + ICON_TRASH + '</button>' +
+            '</div>' +
+          '</div>' +
+          itemsHtml +
+          addFormHtml +
+        '</div>';
+    }).join('');
+  }
+
+  function addCategoryZoneHtml() {
+    if (addingCategory) {
+      return '' +
+        '<div class="bt-inline-form">' +
+          '<input type="text" id="bt-new-category-input" class="bt-name-field" placeholder="Name der Kategorie" />' +
+          '<button type="button" class="bt-inline-confirm" data-action="submit-add-category">Hinzufügen</button>' +
+          '<button type="button" class="bt-inline-cancel" data-action="close-add-category">' + ICON_X + '</button>' +
+        '</div>';
+    }
+    return '<button type="button" class="bt-add-category" data-action="open-add-category">' + ICON_PLUS + ' Neue Kategorie</button>';
+  }
+
+  function updateFooterOnly() {
+    var m = currentMonth();
+    var allItems = [];
+    m.categories.forEach(function (c) { allItems = allItems.concat(c.items); });
+    var totalAllNet = allItems.reduce(function (s, it) { return s + itemNetContribution(it); }, 0);
+    var totalCheckedNet = allItems.reduce(function (s, it) { return it.checked ? s + itemNetContribution(it) : s; }, 0);
+    var totalBudget = totalBudgetForMonth(m);
+    var remainingChecked = totalBudget - totalCheckedNet;
+    var remainingAll = totalBudget - totalAllNet;
+    var elC = document.getElementById('bt-remaining-checked');
+    var elA = document.getElementById('bt-remaining-all');
+    elC.textContent = formatCurrency(remainingChecked);
+    elC.className = 'bt-footer-amount ' + (remainingChecked >= 0 ? 'positive' : 'negative');
+    elA.textContent = formatCurrency(remainingAll);
+    elA.className = 'bt-footer-amount ' + (remainingAll >= 0 ? 'positive' : 'negative');
+  }
+
+  function updateTotalRowOnly() {
+    var el = document.querySelector('.bt-budget-total-amount');
+    if (!el) return;
+    var total = totalBudgetForMonth(currentMonth());
+    el.textContent = formatCurrency(total);
+    el.className = 'bt-budget-total-amount ' + (total >= 0 ? 'positive' : 'negative');
+  }
+
+  function renderCategories() {
+    document.getElementById('bt-categories').innerHTML = categoriesHtml();
+    document.getElementById('bt-add-category-zone').innerHTML = addCategoryZoneHtml();
+    updateFooterOnly();
+    if (openAddFormFor) {
+      var f = document.querySelector('.bt-inline-form[data-cat="' + openAddFormFor + '"] .bt-name-field');
+      if (f) f.focus();
+    }
+    if (addingCategory) {
+      var inp = document.getElementById('bt-new-category-input');
+      if (inp) inp.focus();
+    }
+    if (editingCategoryId) {
+      var catInput = document.querySelector('.bt-cat-name-input[data-cat="' + editingCategoryId + '"]');
+      if (catInput) { catInput.focus(); catInput.select(); }
+    }
+    if (editingItem) {
+      var amtInput = document.querySelector('.bt-item-amount-input[data-cat="' + editingItem.catId + '"][data-item="' + editingItem.itemId + '"]');
+      if (amtInput) { amtInput.focus(); amtInput.select(); }
+    }
+  }
+
+  function toggleItem(catId, itemId) {
+    var m = currentMonth();
+    m.categories = m.categories.map(function (c) {
+      if (c.id !== catId) return c;
+      return Object.assign({}, c, { items: c.items.map(function (it) {
+        return it.id !== itemId ? it : Object.assign({}, it, { checked: !it.checked });
+      })});
+    });
+    saveState(true);
+    renderCategories();
+  }
+
+  function addItem(catId, name, amountStr, type) {
+    var trimmed = (name || '').trim();
+    if (!trimmed) return;
+    var item = { id: uid(), name: trimmed, note: '', amount: parseAmount(amountStr), checked: false, type: type === 'income' ? 'income' : 'expense' };
+    var m = currentMonth();
+    m.categories = m.categories.map(function (c) {
+      if (c.id !== catId) return c;
+      return Object.assign({}, c, { items: c.items.concat([item]) });
+    });
+    openAddFormFor = null;
+    saveState(true);
+    renderCategories();
+  }
+
+  function deleteItem(catId, itemId) {
+    var m = currentMonth();
+    m.categories = m.categories.map(function (c) {
+      if (c.id !== catId) return c;
+      return Object.assign({}, c, { items: c.items.filter(function (it) { return it.id !== itemId; }) });
+    });
+    saveState(true);
+    renderCategories();
+  }
+
+  function addCategory(name) {
+    var trimmed = (name || '').trim();
+    if (!trimmed) return;
+    var m = currentMonth();
+    m.categories = m.categories.concat([{ id: uid(), name: trimmed, items: [] }]);
+    addingCategory = false;
+    saveState(true);
+    renderCategories();
+  }
+
+  function deleteCategory(catId) {
+    var m = currentMonth();
+    m.categories = m.categories.filter(function (c) { return c.id !== catId; });
+    saveState(true);
+    renderCategories();
+  }
+
+  function commitCategoryNameEdit(inputEl) {
+    var catId = inputEl.dataset.cat;
+    var newName = inputEl.value.trim();
+    if (newName) {
+      var m = currentMonth();
+      m.categories = m.categories.map(function (c) {
+        return c.id !== catId ? c : Object.assign({}, c, { name: newName });
+      });
+      saveState(true);
+    }
+    editingCategoryId = null;
+    renderCategories();
+  }
+
+  function cancelCategoryNameEdit() {
+    suppressNextCommit = true;
+    editingCategoryId = null;
+    renderCategories();
+  }
+
+  function commitItemAmountEdit(inputEl) {
+    var catId = inputEl.dataset.cat;
+    var itemId = inputEl.dataset.item;
+    var newAmount = parseAmount(inputEl.value);
+    var m = currentMonth();
+    m.categories = m.categories.map(function (c) {
+      if (c.id !== catId) return c;
+      return Object.assign({}, c, { items: c.items.map(function (it) {
+        return it.id !== itemId ? it : Object.assign({}, it, { amount: newAmount });
+      })});
+    });
+    saveState(true);
+    editingItem = null;
+    renderCategories();
+  }
+
+  function cancelItemAmountEdit() {
+    suppressNextCommit = true;
+    editingItem = null;
+    renderCategories();
+  }
+
+  // ---------- Budget-Bereich (Übertrag + manueller Betrag) ----------
+
+  function budgetSectionHtml() {
+    var m = currentMonth();
+    var manualRow = '' +
+      '<div class="bt-budget-row bt-budget-row-manual">' +
+        '<label class="bt-budget-label" for="bt-manual-input">Verfügbarer Betrag<span>jederzeit änderbar</span></label>' +
+        '<div class="bt-budget-input-wrap"><input id="bt-manual-input" class="bt-budget-input" type="text" inputmode="decimal" placeholder="0,00" /></div>' +
+      '</div>';
+
+    if (state.currentIndex === 0) {
+      return '<div class="bt-budget-section">' + manualRow + '</div>';
+    }
+
+    var prevLabel = monthLabelFor(m.monthOffset - 1);
+    var total = totalBudgetForMonth(m);
+    var totalClass = total >= 0 ? 'positive' : 'negative';
+    var carryHtml = editingCarryOver
+      ? '<input type="text" inputmode="decimal" id="bt-carry-input" class="bt-edit-input bt-carry-input" value="' + escapeHtml(String(m.carryOver).replace('.', ',')) + '" />'
+      : '<button type="button" class="bt-carryover-amount" data-action="edit-carryover" title="Übertrag bearbeiten">' + formatCurrency(m.carryOver) + '</button>';
+    return '' +
+      '<div class="bt-budget-section multi">' +
+        '<div class="bt-budget-row bt-budget-row-carry">' +
+          '<div class="bt-budget-label">Übertrag aus ' + escapeHtml(prevLabel) + '<span>fix, aber änderbar</span></div>' +
+          carryHtml +
+        '</div>' +
+        manualRow +
+        '<div class="bt-budget-total-row"><span>Gesamt verfügbar</span><span class="bt-budget-total-amount ' + totalClass + '">' + formatCurrency(total) + '</span></div>' +
+      '</div>';
+  }
+
+  function commitCarryOverEdit(inputEl) {
+    var newVal = parseAmount(inputEl.value);
+    currentMonth().carryOver = newVal;
+    saveState(true);
+    editingCarryOver = false;
+    renderBudgetSection();
+    updateFooterOnly();
+  }
+
+  function cancelCarryOverEdit() {
+    suppressNextCommit = true;
+    editingCarryOver = false;
+    renderBudgetSection();
+  }
+
+  function wireManualInput() {
+    var el = document.getElementById('bt-manual-input');
+    if (!el) return;
+    el.value = currentMonth().manualAmount ? formatCurrency(currentMonth().manualAmount) : '';
+    el.addEventListener('focus', function () {
+      el.value = currentMonth().manualAmount ? String(currentMonth().manualAmount).replace('.', ',') : '';
+    });
+    el.addEventListener('input', function (e) {
+      currentMonth().manualAmount = parseAmount(e.target.value);
+      updateFooterOnly();
+      updateTotalRowOnly();
+      saveState(false);
+    });
+    el.addEventListener('blur', function (e) {
+      var value = parseAmount(e.target.value);
+      currentMonth().manualAmount = value;
+      el.value = value ? formatCurrency(value) : '';
+      saveState(true);
+    });
+  }
+
+  function renderBudgetSection() {
+    document.getElementById('bt-budget-section').innerHTML = budgetSectionHtml();
+    wireManualInput();
+    if (editingCarryOver) {
+      var ci = document.getElementById('bt-carry-input');
+      if (ci) { ci.focus(); ci.select(); }
+    }
+  }
+
+  // ---------- Navigation zwischen Monaten ----------
+
+  function renderNav() {
+    var m = currentMonth();
+    document.getElementById('bt-subtitle').textContent = 'Laufende Kosten für ' + monthLabelFor(m.monthOffset);
+    document.getElementById('bt-prev-month-btn').style.display = state.currentIndex > 0 ? 'inline-flex' : 'none';
+  }
+
+  function fullRender() {
+    renderNav();
+    renderBudgetSection();
+    renderCategories();
+  }
+
+  function goToNextMonth() {
+    var idx = state.currentIndex;
+    if (idx < state.months.length - 1) {
+      state.currentIndex = idx + 1;
+      saveState(true);
+      fullRender();
+      return;
+    }
+    var cur = state.months[idx];
+    var remainingAll = computeRemainingAllForMonth(cur);
+    var newMonth = {
+      id: uid(),
+      monthOffset: cur.monthOffset + 1,
+      carryOver: remainingAll,
+      manualAmount: 0,
+      categories: buildOriginSnapshot(cur.categories)
+    };
+    state.months.push(newMonth);
+    state.currentIndex = state.months.length - 1;
+    saveState(true);
+    fullRender();
+  }
+
+  function goToPrevMonth() {
+    if (state.currentIndex > 0) {
+      state.currentIndex -= 1;
+      saveState(true);
+      fullRender();
+    }
+  }
+
+  // ---------- Event-Delegation ----------
+
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest('[data-action]');
+    if (!el) return;
+    var action = el.dataset.action;
+    var catId = el.dataset.cat;
+    var itemId = el.dataset.item;
+
+    if (action === 'open-add-item') {
+      var wasOpenForThis = openAddFormFor === catId;
+      openAddFormFor = wasOpenForThis ? null : catId;
+      if (!wasOpenForThis) pendingItemType = 'expense';
+      renderCategories();
+    } else if (action === 'close-add-item') {
+      openAddFormFor = null;
+      renderCategories();
+    } else if (action === 'set-item-type') {
+      pendingItemType = el.dataset.type === 'income' ? 'income' : 'expense';
+      var typeButtons = el.closest('.bt-inline-form').querySelectorAll('[data-action="set-item-type"]');
+      typeButtons.forEach(function (btn) {
+        if (btn.dataset.type === pendingItemType) btn.classList.add('active'); else btn.classList.remove('active');
+      });
+    } else if (action === 'submit-add-item') {
+      var formEl = el.closest('.bt-inline-form');
+      var name = formEl.querySelector('.bt-name-field').value;
+      var amount = formEl.querySelector('.bt-amount-field').value;
+      addItem(catId, name, amount, pendingItemType);
+      pendingItemType = 'expense';
+    } else if (action === 'edit-category-name') {
+      editingCategoryId = catId;
+      renderCategories();
+    } else if (action === 'edit-item-amount') {
+      editingItem = { catId: catId, itemId: itemId };
+      renderCategories();
+    } else if (action === 'edit-carryover') {
+      editingCarryOver = true;
+      renderBudgetSection();
+    } else if (action === 'delete-item') {
+      var catForDel = currentMonth().categories.find(function (c) { return c.id === catId; });
+      var itemForDel = catForDel ? catForDel.items.find(function (it) { return it.id === itemId; }) : null;
+      var itemName = itemForDel ? itemForDel.name : 'diesen Posten';
+      if (window.confirm('„' + itemName + '“ wirklich löschen?')) {
+        deleteItem(catId, itemId);
+      }
+    } else if (action === 'delete-category') {
+      var catForDel2 = currentMonth().categories.find(function (c) { return c.id === catId; });
+      var catName = catForDel2 ? catForDel2.name : 'diese Kategorie';
+      var itemCount = catForDel2 ? catForDel2.items.length : 0;
+      var msg = '„' + catName + '“ wirklich löschen?';
+      if (itemCount > 0) msg += ' Alle ' + itemCount + ' enthaltenen Posten werden mitgelöscht.';
+      if (window.confirm(msg)) {
+        deleteCategory(catId);
+      }
+    } else if (action === 'open-add-category') {
+      addingCategory = true;
+      renderCategories();
+    } else if (action === 'close-add-category') {
+      addingCategory = false;
+      renderCategories();
+    } else if (action === 'submit-add-category') {
+      var inp = document.getElementById('bt-new-category-input');
+      addCategory(inp ? inp.value : '');
+    }
+  });
+
+  document.addEventListener('change', function (e) {
+    if (e.target.matches('.bt-checkbox')) {
+      toggleItem(e.target.dataset.cat, e.target.dataset.item);
+    }
+  });
+
+  document.addEventListener('focusout', function (e) {
+    if (suppressNextCommit) { suppressNextCommit = false; return; }
+    if (e.target.matches && e.target.matches('.bt-cat-name-input')) {
+      commitCategoryNameEdit(e.target);
+    } else if (e.target.matches && e.target.matches('.bt-item-amount-input')) {
+      commitItemAmountEdit(e.target);
+    } else if (e.target.id === 'bt-carry-input') {
+      commitCarryOverEdit(e.target);
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.target.matches('.bt-cat-name-input')) {
+      if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelCategoryNameEdit(); }
+      return;
+    }
+    if (e.target.matches('.bt-item-amount-input')) {
+      if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelItemAmountEdit(); }
+      return;
+    }
+    if (e.target.id === 'bt-carry-input') {
+      if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancelCarryOverEdit(); }
+      return;
+    }
+    if (e.target.matches('.bt-name-field, .bt-amount-field')) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var formEl = e.target.closest('.bt-inline-form');
+        if (formEl.dataset.cat) {
+          var name = formEl.querySelector('.bt-name-field').value;
+          var amount = formEl.querySelector('.bt-amount-field').value;
+          addItem(formEl.dataset.cat, name, amount, pendingItemType);
+          pendingItemType = 'expense';
+        } else {
+          var inp = document.getElementById('bt-new-category-input');
+          addCategory(inp ? inp.value : '');
+        }
+      } else if (e.key === 'Escape') {
+        if (e.target.id === 'bt-new-category-input') { addingCategory = false; } else { openAddFormFor = null; }
+        renderCategories();
+      }
+    }
+  });
+
+  document.getElementById('bt-reset-btn').addEventListener('click', function () {
+    var confirmed = window.confirm(
+      'Diesen Monat wirklich zurücksetzen?\n\nAlle ursprünglichen Kategorien & Posten aus der PDF werden wiederhergestellt (auch falls gelöscht) – ohne Haken. Selbst hinzugefügte Posten und Kategorien bleiben erhalten, ebenfalls ohne Haken. Der manuell eingegebene Betrag dieses Monats wird gelöscht. Der Übertrag aus dem Vormonat bleibt unverändert.'
+    );
+    if (!confirmed) return;
+    var m = currentMonth();
+    m.categories = buildOriginSnapshot(m.categories);
+    m.manualAmount = 0;
+    saveState(true);
+    fullRender();
+  });
+
+  document.getElementById('bt-next-month-btn').addEventListener('click', goToNextMonth);
+  document.getElementById('bt-prev-month-btn').addEventListener('click', goToPrevMonth);
+
+  // ---------- Dauerhafter Speicher & Backup ----------
+  var LAST_BACKUP_KEY = 'haushaltsbuch-last-backup';
+  var persistInfo = '';
+
+  function updateBackupInfo() {
+    var info = document.getElementById('bt-backup-info');
+    var last = null;
+    try { last = localStorage.getItem(LAST_BACKUP_KEY); } catch (e) {}
+    var txt = last
+      ? 'Letztes Backup: ' + new Date(last).toLocaleDateString('de-DE')
+      : 'Noch kein Backup gespeichert.';
+    info.textContent = txt + (persistInfo ? ' · ' + persistInfo : '');
+  }
+
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted().then(function (already) {
+      return already ? true : navigator.storage.persist();
+    }).then(function (ok) {
+      persistInfo = ok ? 'Speicher dauerhaft geschützt' : 'Speicher nicht dauerhaft geschützt – regelmäßig Backup machen';
+      updateBackupInfo();
+    }).catch(function () {});
+  }
+
+  document.getElementById('bt-export-btn').addEventListener('click', function () {
+    var d = new Date();
+    var stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'haushaltsbuch-backup-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    try { localStorage.setItem(LAST_BACKUP_KEY, d.toISOString()); } catch (e) {}
+    updateBackupInfo();
+  });
+
+  document.getElementById('bt-import-btn').addEventListener('click', function () {
+    document.getElementById('bt-import-file').click();
+  });
+
+  document.getElementById('bt-import-file').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.months) || !parsed.months.length || !parsed.anchor) {
+          throw new Error('format');
+        }
+        if (!window.confirm('Backup laden?' + String.fromCharCode(10, 10) + 'Alle aktuellen Eingaben werden durch das Backup ersetzt.')) return;
+        if (typeof parsed.currentIndex !== 'number' || !parsed.months[parsed.currentIndex]) {
+          parsed.currentIndex = parsed.months.length - 1;
+        }
+        state = parsed;
+        saveState(true);
+        fullRender();
+      } catch (err) {
+        window.alert('Diese Datei ist kein gültiges Haushaltsbuch-Backup.');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  updateBackupInfo();
+
+  // Initiales Rendern
+  fullRender();
+</script>
+</body>
+</html>
